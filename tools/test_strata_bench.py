@@ -339,6 +339,15 @@ class ReportTests(unittest.TestCase):
     def test_no_server_is_an_error_not_a_crash(self):
         self.assertEqual(B.main(["--url", "http://127.0.0.1:9", "--quiet"]), 2)
 
+    def test_url_does_not_read_the_configs_port(self):
+        """#3096: with --url the bench talks to that address; a config port it cannot parse must not be read (the
+        unconditional int() crashed before the URL was ever used)."""
+        with tempfile.TemporaryDirectory() as d, mock.patch.object(B, "is_strata", return_value=False), \
+                contextlib.redirect_stderr(io.StringIO()):
+            cfg = Path(d) / "strata-test.json"
+            cfg.write_text(json.dumps({"host": "127.0.0.1", "port": None, "args": []}), encoding="utf-8")
+            self.assertEqual(B.main(["--config", str(cfg), "--url", "http://127.0.0.1:9", "--quiet"]), 2)
+
     def test_a_port_taken_by_something_else_names_the_port(self):
         """#3096: the message named `port`, which main never defined, so the bench crashed instead of telling
         the user which port is taken."""
