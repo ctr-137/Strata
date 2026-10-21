@@ -2422,7 +2422,7 @@ signal, early cleanup and `--errors` error-propagation checks. Its `--synchronou
 mode is the negative control under memcheck: an eight-second watchdog releases
 the original launch/service deadlock and the test fails.
 
-## RTX 30 series (sm_86) and Tesla P100 (sm_60): bitwise decode switches on by default
+## RTX 30 series (sm_86), Ada (sm_89) and Tesla P100 (sm_60): bitwise decode switches on by default
 
 The 0.1.45 switch set that is bit-exact on every card was measured switch by switch on a 12 GB RTX 3060, a 16 GB RTX A4000 (one card)
 and a 16 GB Tesla P100, IQ3_XXS, default flags (adaptive tier on), fresh engine per run, 8 interleaved pairs, equal expert-cache slots,
@@ -2436,6 +2436,8 @@ engine reads its switches; a switch you set yourself, to anything, is kept):
   `STRATA_SM86_PERF=0` turns the set off.
 - sm_60 (Tesla P100): `STRATA_ADAPT_NOWAIT=1`, `STRATA_ADAPT_LAG=2`, `STRATA_SIDE_MIXER=2`, `STRATA_FUSE_WAIT=2`, `STRATA_B6_MMVQ_ROWS=1`,
   `STRATA_FUSE_DECODE=1`, `STRATA_GR_UP75=1`. `STRATA_SM60_PERF=0` turns the set off.
+- sm_89 (Ada): the nine sm_86 switches unchanged. `STRATA_SM89_PERF=0` turns the set off. Measured 2026-10-21 on one card, below;
+  the set as a whole, not switch by switch.
 
 The table is used when every visible card has that one compute capability. `STRATA_ADAPT_OVERLAP=1` (opt-in) does not run beside
 `STRATA_ADAPT_LAG` / `STRATA_ADAPT_NOWAIT`: set `STRATA_ADAPT_LAG=1 STRATA_ADAPT_NOWAIT=0` with it. Left out because they did not pay or
@@ -2451,6 +2453,15 @@ interleaved pairs of fresh engines, the same number of expert-cache slots in eve
 | RTX 3060 12 GB (sm_86) | 60.36 -> 66.52 tok/s | +10.2% | 8/8 | 0.999 | 1.002 (equal to before) |
 | RTX A4000 16 GB (sm_86) | 51.16 -> 57.82 tok/s | +13.0% | 8/8 | 0.979 | 0.994 |
 | Tesla P100 16 GB (sm_60) | 36.56 -> 41.76 tok/s | +14.2% | 8/8 | 0.975 | 0.991 |
+
+The sm_89 set was measured 2026-10-21 on an **RTX 4000 SFF Ada 20 GB** (70 W power cap, i5-13500 host, PCIe gen4 x16), the
+Qwen3.8-Flash-Next GSQ-RCO IQ3_XXS with its own serving flags (`--spec 4 --spec-min-p 0.5 --mtp --kv int8 --kv-resident 32768
+--max-context 262144 --expert-cache auto --prefill auto --vision --pool-workers 9`), engine 0.1.46.2: the standard benchmark
+protocol ([BENCHMARK_PROTOCOL.md](BENCHMARK_PROTOCOL.md), draft.1), fresh engine per run, 3 repeats per case. Decode medians:
+52.76 -> 60.81 tok/s at the 4K prompt (+15%), 48.80 -> 55.46 at 16K (+14%), 61.95 -> 66.33 on the short prompt (+7%); prompt
+rates stayed within their run spread; every run passed 12/12 sanity requests. Two runs carried the switches as start-script
+environment and one (the last) through this table inside the engine, with no exported variables - the gains reproduce. Raw
+runs: the `bench/results/2026-10-21-standard-rtx-4000-sff-ada-generation-*` folders. Only this Ada card has been measured.
 
 Two things looked at and **not changed**. A prompt chunk above 8192 (`--prefill auto:16384` or `auto:32768`) changes prompt speed by -3% to +8%
 on 12-16 GB cards at 20K tokens (at 16384 / 32768: RTX 3060 +4.5% / +4.5%, Tesla P100 +3.1% / +7.7%, RTX A4000 -3.4% / +6.0%), but it is not bit-exact on
